@@ -11,3 +11,13 @@ terraform {
 provider "aws" {
   region = "eu-central-1"
 }
+
+terraform {
+  backend "remote" {
+    organization = "netflix-mimic"
+
+    workspaces {
+      name = "production"
+    }
+  }
+}
