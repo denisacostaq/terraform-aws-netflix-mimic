@@ -1,6 +1,12 @@
 resource "aws_vpc" "netflix" {
   cidr_block       = "10.1.0.0/16"
-  instance_tenancy = "default"
+  tags = {
+    "Name" = "netflix"
+  }
+}
+
+resource "aws_internet_gateway" "netflix-gw" {
+  vpc_id = aws_vpc.netflix.id
   tags = {
     "Name" = "netflix"
   }
@@ -44,13 +50,6 @@ resource "aws_subnet" "private-1b" {
   }
 }
 
-resource "aws_internet_gateway" "netflix-gw" {
-  vpc_id = aws_vpc.netflix.id
-  tags = {
-    "Name" = "netflix"
-  }
-}
-
 resource "aws_route_table" "noninternet-route-table" {
   vpc_id = aws_vpc.netflix.id
 }
@@ -65,12 +64,12 @@ resource "aws_route_table" "internet-route-table" {
 }
 
 resource "aws_route_table_association" "internet-1a" {
-  route_table_id = aws_route_table.noninternet-route-table.id
+  route_table_id = aws_route_table.internet-route-table.id
   subnet_id = aws_subnet.public-1a.id
 }
 
 resource "aws_route_table_association" "internet-1b" {
-  route_table_id = aws_route_table.noninternet-route-table.id
+  route_table_id = aws_route_table.internet-route-table.id
   subnet_id = aws_subnet.public-1b.id
 }
 
