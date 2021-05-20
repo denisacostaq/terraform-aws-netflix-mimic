@@ -82,3 +82,97 @@ resource "aws_route_table_association" "noninternet-1b" {
   route_table_id = aws_route_table.noninternet-route-table.id
   subnet_id = aws_subnet.private-1b.id
 }
+
+resource "aws_security_group" "allow_global_ssh" {
+  name = "SSH global"
+  description = "Allow ssh global incoming ssh trafic, and private outgoin"
+  vpc_id = aws_vpc.netflix.id
+  ingress {
+    cidr_blocks = [ "0.0.0.0/0" ]
+    description = "Allow global incoming ssh"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+  }
+  egress {
+    cidr_blocks = [aws_subnet.private-1a.cidr_block, aws_subnet.private-1b.cidr_block]
+    description = "Allow outgoing ssh to private subnets"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+  }
+  tags = {
+    "Name" = "allow_global_ssh"
+  }
+}
+
+resource "aws_security_group" "allow_public_ssh" {
+  name = "SSH public"
+  description = "Allow ssh public incoming trafic"
+  vpc_id = aws_vpc.netflix.id
+  ingress {
+    cidr_blocks = [ aws_subnet.public-1a.cidr_block, aws_subnet.public-1b.cidr_block ]
+    description = "Allow public incoming ssh"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+  }
+  tags = {
+    "Name" = "allow_public_ssh"
+  }
+}
+
+resource "aws_security_group" "allow_public_http" {
+  name = "HTTP public"
+  description = "Allow http public outgoin trafic"
+  vpc_id = aws_vpc.netflix.id
+  ingress {
+    cidr_blocks = [aws_subnet.public-1a.cidr_block, aws_subnet.public-1b.cidr_block ]
+    description = "Allow public incoming http"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+  }
+  tags = {
+    "Name" = "allow_public_http"
+  }
+}
+
+resource "aws_security_group" "allow_global_http" {
+  name = "HTTP global"
+  description = "Allow http global outgoin trafic"
+  vpc_id = aws_vpc.netflix.id
+  ingress {
+    cidr_blocks = [ "0.0.0.0/0" ]
+    description = "Allow global incoming http"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+  }
+  egress {
+    cidr_blocks = [aws_subnet.private-1a.cidr_block, aws_subnet.private-1b.cidr_block]
+    description = "Allow outgoing http to private subnets"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+  }
+  tags = {
+    "Name" = "allow_global_http"
+  }
+}
+
+resource "aws_security_group" "http_global_outgoing" {
+  name = "http_global_outgoing"
+  description = "Allow global http outgoin trafic (APT)"
+  vpc_id = aws_vpc.netflix.id
+  egress {
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow global outgoing http"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+  }
+  tags = {
+    "Name" = "http_global_outgoing"
+  }
+}
