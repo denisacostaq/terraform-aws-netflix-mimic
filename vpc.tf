@@ -5,13 +5,6 @@ resource "aws_vpc" "netflix" {
   }
 }
 
-resource "aws_internet_gateway" "netflix-gw" {
-  vpc_id = aws_vpc.netflix.id
-  tags = {
-    "Name" = "netflix"
-  }
-}
-
 resource "aws_subnet" "public-1a" {
   vpc_id            = aws_vpc.netflix.id
   availability_zone = "eu-central-1a"
@@ -50,8 +43,32 @@ resource "aws_subnet" "private-1b" {
   }
 }
 
+resource "aws_internet_gateway" "netflix-gw" {
+  vpc_id = aws_vpc.netflix.id
+  tags = {
+    "Name" = "netflix"
+  }
+}
+
+resource "aws_eip" "nat_gateway" {
+  vpc = true
+}
+
+resource "aws_nat_gateway" "allow_egress" {
+  allocation_id = aws_eip.nat_gateway.id
+  subnet_id = aws_subnet.public-1a.id
+  tags = {
+    "Name" = "netflix"
+  }
+  depends_on = [aws_internet_gateway.netflix-gw]
+}
+
 resource "aws_route_table" "noninternet-route-table" {
   vpc_id = aws_vpc.netflix.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.allow_egress.id
+  }
 }
 
 resource "aws_route_table" "internet-route-table" {
@@ -60,7 +77,6 @@ resource "aws_route_table" "internet-route-table" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.netflix-gw.id
   }
-  # FIXME local network
 }
 
 resource "aws_route_table_association" "internet-1a" {
