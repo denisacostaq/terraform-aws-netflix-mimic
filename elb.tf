@@ -46,12 +46,12 @@ resource "aws_lb_listener_rule" "static" {
 
 resource "aws_lb_target_group_attachment" "netflix_home" {
   target_group_arn = aws_lb_target_group.netflix.arn
-  target_id        = aws_instance.home-node[0].id
+  target_id        = aws_instance.home-node["eu-central-1c_home"].id
   port             = 80
 }
 
 resource "aws_lb_target_group_attachment" "netflix_stream" {
   target_group_arn = aws_lb_target_group.netflix.arn
-  target_id        = aws_instance.stream-node[0].id
+  target_id        = aws_instance.stream-node["eu-central-1c_home"].id
   port             = 80
 }
