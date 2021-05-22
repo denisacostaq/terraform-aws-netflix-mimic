@@ -5,41 +5,24 @@ resource "aws_vpc" "netflix" {
   }
 }
 
-resource "aws_subnet" "public-1a" {
+resource "aws_subnet" "netflix-private" {
   vpc_id            = aws_vpc.netflix.id
-  availability_zone = "eu-central-1a"
-  cidr_block        = "10.1.1.0/24"
+  for_each = toset(data.aws_availability_zones.all.names)
+  availability_zone = each.value
+  cidr_block        = format("10.1.%d.0/24", index(data.aws_availability_zones.all.names, each.value) + 1)
+  tags = {
+    "Name" = "netflix-private-${each.value}"
+  }
+}
+
+resource "aws_subnet" "netflix-public" {
+  vpc_id            = aws_vpc.netflix.id
+  for_each = toset(data.aws_availability_zones.all.names)
+  availability_zone = each.value
+  cidr_block        = format("10.1.%d.0/24", length(data.aws_availability_zones.all.names) + index(data.aws_availability_zones.all.names, each.value) + 1)
   map_public_ip_on_launch = true
   tags = {
-    "Name" = "netflix-public-1a"
-  }
-}
-
-resource "aws_subnet" "private-1a" {
-  vpc_id            = aws_vpc.netflix.id
-  availability_zone = "eu-central-1a"
-  cidr_block        = "10.1.2.0/24"
-  tags = {
-    "Name" = "netflix-private-1a"
-  }
-}
-
-resource "aws_subnet" "public-1b" {
-  vpc_id            = aws_vpc.netflix.id
-  availability_zone = "eu-central-1b"
-  cidr_block        = "10.1.3.0/24"
-  map_public_ip_on_launch = true
-  tags = {
-    "Name" = "netflix-public-1b"
-  }
-}
-
-resource "aws_subnet" "private-1b" {
-  vpc_id            = aws_vpc.netflix.id
-  availability_zone = "eu-central-1b"
-  cidr_block        = "10.1.4.0/24"
-  tags = {
-    "Name" = "netflix-private-1b"
+    "Name" = "netflix-public-${each.value}"
   }
 }
 
@@ -56,9 +39,9 @@ resource "aws_eip" "nat_gateway" {
 
 resource "aws_nat_gateway" "allow_egress" {
   allocation_id = aws_eip.nat_gateway.id
-  subnet_id = aws_subnet.public-1a.id
+  subnet_id = lookup(aws_subnet.netflix-public, data.aws_availability_zones.all.names[0]).id
   tags = {
-    "Name" = "netflix"
+    "Name" = "netflix-public"
   }
   depends_on = [aws_internet_gateway.netflix-gw]
 }
@@ -79,24 +62,16 @@ resource "aws_route_table" "internet-route-table" {
   }
 }
 
-resource "aws_route_table_association" "internet-1a" {
+resource "aws_route_table_association" "internet" {
+  for_each = aws_subnet.netflix-public
   route_table_id = aws_route_table.internet-route-table.id
-  subnet_id = aws_subnet.public-1a.id
+  subnet_id = each.value.id
 }
 
-resource "aws_route_table_association" "internet-1b" {
-  route_table_id = aws_route_table.internet-route-table.id
-  subnet_id = aws_subnet.public-1b.id
-}
-
-resource "aws_route_table_association" "noninternet-1a" {
+resource "aws_route_table_association" "noninternet" {
+  for_each = aws_subnet.netflix-private
   route_table_id = aws_route_table.noninternet-route-table.id
-  subnet_id = aws_subnet.private-1a.id
-}
-
-resource "aws_route_table_association" "noninternet-1b" {
-  route_table_id = aws_route_table.noninternet-route-table.id
-  subnet_id = aws_subnet.private-1b.id
+  subnet_id = each.value.id
 }
 
 resource "aws_security_group" "allow_global_ssh" {
@@ -111,7 +86,7 @@ resource "aws_security_group" "allow_global_ssh" {
     protocol = "tcp"
   }
   egress {
-    cidr_blocks = [aws_subnet.private-1a.cidr_block, aws_subnet.private-1b.cidr_block]
+    cidr_blocks = [for np in aws_subnet.netflix-private: np.cidr_block]
     description = "Allow outgoing ssh to private subnets"
     from_port = 22
     to_port = 22
@@ -127,7 +102,7 @@ resource "aws_security_group" "allow_public_ssh" {
   description = "Allow ssh public incoming trafic"
   vpc_id = aws_vpc.netflix.id
   ingress {
-    cidr_blocks = [ aws_subnet.public-1a.cidr_block, aws_subnet.public-1b.cidr_block ]
+    cidr_blocks = [for np in aws_subnet.netflix-public: np.cidr_block]
     description = "Allow public incoming ssh"
     from_port = 22
     to_port = 22
@@ -143,7 +118,7 @@ resource "aws_security_group" "allow_public_http" {
   description = "Allow http public outgoin trafic"
   vpc_id = aws_vpc.netflix.id
   ingress {
-    cidr_blocks = [aws_subnet.public-1a.cidr_block, aws_subnet.public-1b.cidr_block ]
+    cidr_blocks = [for np in aws_subnet.netflix-public: np.cidr_block]
     description = "Allow public incoming http"
     from_port = 80
     to_port = 80
@@ -166,7 +141,7 @@ resource "aws_security_group" "allow_global_http" {
     protocol = "tcp"
   }
   egress {
-    cidr_blocks = [aws_subnet.private-1a.cidr_block, aws_subnet.private-1b.cidr_block]
+    cidr_blocks = [for np in aws_subnet.netflix-private: np.cidr_block]
     description = "Allow outgoing http to private subnets"
     from_port = 80
     to_port = 80
