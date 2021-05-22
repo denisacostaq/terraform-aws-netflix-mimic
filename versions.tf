@@ -9,15 +9,15 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-central-1"
+  region = var.aws_region
 }
 
-terraform {
-  backend "remote" {
-    organization = "netflix-mimic"
+# terraform {
+#   backend "remote" {
+#     organization = "netflix-mimic"
 
-    workspaces {
-      name = "production"
-    }
-  }
-}
+#     workspaces {
+#       name = "production"
+#     }
+#   }
+# }
