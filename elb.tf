@@ -73,10 +73,7 @@ resource "aws_lb_listener_rule" "service" {
 }
 
 resource "aws_lb_target_group_attachment" "netflix" {
-  for_each = {
-    #make in a single place locals
-    for a in toset(local.instances-data) : format("%s_%s", a.az, a.service) => a
-  }
+  for_each = local.instances-spread
   target_group_arn = lookup(aws_lb_target_group.netflix, each.value.service).arn
   target_id        = aws_instance.worker-node[each.key].id
   port             = 80
