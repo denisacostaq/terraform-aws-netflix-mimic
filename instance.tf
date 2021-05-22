@@ -112,7 +112,7 @@ resource "aws_instance" "worker-node" {
   for_each = local.instances-spread
   subnet_id = lookup(aws_subnet.netflix-private, each.value.az).id
   security_groups = [ aws_security_group.allow_public_ssh.id, aws_security_group.allow_public_http.id, aws_security_group.http_global_outgoing.id ]
-  user_data = templatefile("${path.module}/setup_worker_node.tpl", {worker_name = each.value.service, az = each.value.az})
+  user_data = templatefile("${path.module}/setup_worker_node.tpl", {worker_name = each.value.service, az = each.value.az, services = var.services})
   tags = {
     "Name" = "Worker node ${each.value.service} in ${each.value.az}"
   }
