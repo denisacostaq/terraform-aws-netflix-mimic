@@ -1,7 +1,7 @@
 module "ssh_key_pair_admin" {
   source = "cloudposse/key-pair/aws"
   version     = ">=0.18.0"
-  namespace             = "netflix"
+  namespace             = "service"
   stage                 = "prod"
   name                  = "admin"
   ssh_public_key_path   = ".secrets"
@@ -29,11 +29,11 @@ resource "local_file" "private_key_admin" {
 module "ssh_key_pair_bastion" {
   source = "cloudposse/key-pair/aws"
   version     = ">=0.18.0"
-  namespace             = "netflix"
+  namespace             = "service"
   stage                 = "prod"
   name                  = "bastion"
   ssh_public_key_path   = ".secrets"
-  generate_ssh_key      = true#!fileexists(".secrets/netflix-prod-bastion.pem")
+  generate_ssh_key      = true
   private_key_extension = ".pem"
   public_key_extension  = ".pub"
 }
@@ -41,7 +41,7 @@ module "ssh_key_pair_bastion" {
 resource "aws_instance" "bastion-host" {
   ami = data.aws_ami.ubuntu-server.id
   instance_type = var.instance_type
-  subnet_id = lookup(aws_subnet.netflix-public, data.aws_availability_zones.all.names[0]).id
+  subnet_id = lookup(aws_subnet.service-public, data.aws_availability_zones.all.names[0]).id
   security_groups = [ aws_security_group.allow_global_ssh.id ]
   # key_name = "awsec2"
   key_name = module.ssh_key_pair_admin.key_name
@@ -110,7 +110,7 @@ resource "aws_instance" "worker-node" {
   # key_name = "awsec2"
   key_name = module.ssh_key_pair_bastion.key_name
   for_each = local.instances-spread
-  subnet_id = lookup(aws_subnet.netflix-private, each.value.az).id
+  subnet_id = lookup(aws_subnet.service-private, each.value.az).id
   security_groups = [ aws_security_group.allow_public_ssh.id, aws_security_group.allow_public_http.id, aws_security_group.http_global_outgoing.id ]
   user_data = templatefile("${path.module}/setup_worker_node.tpl", {worker_name = each.value.service, az = each.value.az, services = var.services})
   tags = {

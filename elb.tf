@@ -1,29 +1,29 @@
-# resource "aws_s3_bucket" "netflix-load-balancer-logs" {
-#   name = "netflix-load-balancer-logs"
+# resource "aws_s3_bucket" "service-load-balancer-logs" {
+#   name = "service-load-balancer-logs"
 # }
 
-resource "aws_lb" "netflix-http" {
-  name = "netflix-http"
+resource "aws_lb" "service-http" {
+  name = "service-http"
   load_balancer_type = "application"
   internal = false
   security_groups = [ aws_security_group.allow_global_http.id ]
-  subnets = [for np in aws_subnet.netflix-public: np.id]
+  subnets = [for np in aws_subnet.service-public: np.id]
 
   tags = {
-    Name = "netflix_http_load_balancer"
+    Name = "service_http_load_balancer"
   }
 }
 
-resource "aws_lb_target_group" "netflix" {
+resource "aws_lb_target_group" "service" {
   for_each = toset(var.services)
   name     = each.value
   port     = 80
   protocol = "HTTP"
-  vpc_id   = aws_vpc.netflix.id
+  vpc_id   = aws_vpc.service.id
 }
 
-resource "aws_lb_listener" "netflix" {
-  load_balancer_arn = aws_lb.netflix-http.arn
+resource "aws_lb_listener" "service" {
+  load_balancer_arn = aws_lb.service-http.arn
   port              = "80"
   protocol          = "HTTP"
   default_action {
@@ -37,7 +37,7 @@ resource "aws_lb_listener" "netflix" {
 }
 
 resource "aws_lb_listener_rule" "home" {
-  listener_arn = aws_lb_listener.netflix.arn
+  listener_arn = aws_lb_listener.service.arn
   priority     = 80
 
   action {
@@ -57,12 +57,12 @@ resource "aws_lb_listener_rule" "home" {
 
 resource "aws_lb_listener_rule" "service" {
   for_each = toset(var.services)
-  listener_arn = aws_lb_listener.netflix.arn
+  listener_arn = aws_lb_listener.service.arn
   priority     = index(var.services, each.value) + 1
 
   action {
     type             = "forward"
-    target_group_arn = lookup(aws_lb_target_group.netflix, each.value).arn
+    target_group_arn = lookup(aws_lb_target_group.service, each.value).arn
   }
 
   condition {
@@ -72,9 +72,9 @@ resource "aws_lb_listener_rule" "service" {
   }
 }
 
-resource "aws_lb_target_group_attachment" "netflix" {
+resource "aws_lb_target_group_attachment" "service" {
   for_each = local.instances-spread
-  target_group_arn = lookup(aws_lb_target_group.netflix, each.value.service).arn
+  target_group_arn = lookup(aws_lb_target_group.service, each.value.service).arn
   target_id        = aws_instance.worker-node[each.key].id
   port             = 80
 }
