@@ -42,7 +42,7 @@ resource "aws_instance" "bastion-host" {
   ami = data.aws_ami.ubuntu-server.id
   instance_type = var.instance_type
   subnet_id = lookup(aws_subnet.service-public, data.aws_availability_zones.all.names[0]).id
-  security_groups = [ aws_security_group.allow_global_ssh.id ]
+  vpc_security_group_ids = [ aws_security_group.allow_global_ssh.id ]
   # key_name = "awsec2"
   key_name = module.ssh_key_pair_admin.key_name
   tags = {
@@ -111,7 +111,7 @@ resource "aws_instance" "worker-node" {
   key_name = module.ssh_key_pair_bastion.key_name
   for_each = local.instances-spread
   subnet_id = lookup(aws_subnet.service-private, each.value.az).id
-  security_groups = [ aws_security_group.allow_public_ssh.id, aws_security_group.allow_public_http.id, aws_security_group.http_global_outgoing.id ]
+  vpc_security_group_ids = [ aws_security_group.allow_public_ssh.id, aws_security_group.allow_public_http.id, aws_security_group.http_global_outgoing.id ]
   user_data = templatefile("${path.module}/setup_worker_node.tpl", {worker_name = each.value.service, az = each.value.az, services = var.services})
   tags = {
     "Name" = "Worker node ${each.value.service} in ${each.value.az}"
